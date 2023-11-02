@@ -1,4 +1,20 @@
+---
+title: "Bioinformatics Tools (BINF 6210) - Assignment #2"
+author: "Kehan (Coco) Zhang"
+date: "2023-10-20"
+output: pdf_document
+---
 
+# Introduction:
+
+Due to the global challenge of species extinction, extensive research has been deemed necessary to investigate and identify the causes behind the decline of species and to seek associations with the risk of extinction, aiming to unveil overarching trends observed across various groups. In the last fifteen years, phylogenetic comparative methods have emerged as a robust tool, empowering researchers to systematically explore and comprehend the fundamental processes and patterns characterizing contemporary species extinction (Morlon, 2014). Within the realm of trait–risk relationships explored in prior mammalian studies, one hypothesis revolves around the geographical area as a potential factor influencing the likelihood of extinction (Cardillo et al., 2008). Another hypothesis focuses on body size, which is frequently correlated with vulnerability to extinction due to its association with several other traits directly related to persistence (Collen et al., 2011). The concept is based on the idea that mammals with a smaller geographical range area (GR_Area) or larger body size may have reduced population sizes, leading to increased risks associated with demographic and environmental uncertainties (Purvis et al., 2000; Cardillo et al., 2008). A smaller GR_Area indicates habitat specificity, while a larger body size suggests a greater susceptibility to hunting and persecution, which are characteristics likely to impact a species' capacity to withstand modifications to its habitat and heightens the vulnerability of the species' entire range to potential threats.
+
+
+The genus *Crocidura*, commonly known as white-toothed shrews, represents the most prolific mammalian genus in terms of species diversity, and these shrews are distributed across diverse geographical regions (Igbokwe et al., 2019). Serving as insectivores, they play a crucial role in regulating invertebrate populations, thereby influencing the equilibrium of local flora and fauna (Igbokwe et al., 2019). Beyond their role in predation, their ecological significance extends to being prey for larger predators, contributing to the intricate trophic relationships within ecosystems. Despite their ecological importance, *Crocidura* species face a myriad of threats that warrant focused conservation efforts. Habitat loss and fragmentation resulting from human activities, the impacts of climate change, and competition with invasive species pose significant challenges that could compromise the survival of these shrews (Igbokwe et al., 2019). Thus, the objective of this study is to examine whether the conservation status of evolutionarily akin species within the *Crocidura* genus is correlated with their geographical areas and body size. The investigation will utilize trait information, specifically GR_Area_km^2 and body size, sourced from the PanTHERIA database, and the findings will be compared with the IUCN Red List status for conservation.
+
+# Script for exploring research question
+
+# Install, load needed packages.
 ```{r include=TRUE}
 
 # Install packages
@@ -23,6 +39,8 @@ library(ggtree)
 
 ## Step 1: Obtaining data:
 
+To start off, the cytb sequences for "Crocidura" genera from NCBI using "rentrez" package were downloaded. Due to the large dataset it has, search_history was used to store these information, and the sequences can then be retrieved using the history:
+
 ```{r eval=FALSE, include=TRUE}
 # Perform a search to get the web history
 search_history <- entrez_search(db = "nuccore", term = "Crocidura AND cytb 400:2000[SLEN]", 
@@ -33,6 +51,8 @@ sequences <- entrez_fetch(db = "nuccore", web_history = search_history$web_histo
                           rettype = "fasta")
 ```
 
+While it did not take a long time to download these sequences, still save them just in case we need to use it:
+
 ```{r eval=FALSE, include=TRUE}
 # Create a temporary file and write the sequences to it
 temp_fasta_file <- tempfile(fileext = ".fasta")
@@ -42,6 +62,7 @@ write(sequences, file = temp_fasta_file)
 crocidura_sequences <- readDNAStringSet(temp_fasta_file)
 ```
 
+For personal preference, the sequences were converted into a data frame for easier visualization and analysis:
 ```{r eval=FALSE, include=TRUE}
 # Create an empty dataframe with column initialized
 crocidura.df <- data.frame(
@@ -75,6 +96,7 @@ rm(i, sequenceID, split_name, ID, genus, species, sequence)
 
 ## Step 2: Explore and filtering data
 
+Since we are only interested in "Crocidura" genus, all non Crocidura entries were removed:
 ```{r eval=FALSE, include=TRUE}
 # Filter unwanted genus
 crocidura.df2 <- crocidura.df[crocidura.df$genus == "Crocidura",]
@@ -84,6 +106,8 @@ species_distribution <- data.frame(table(crocidura.df2$species))
 colnames(species_distribution) <- c("species", "count")
 
 ```
+
+Since we are working with sequence classification, aligning these sequence would be essential. The dataset has around 4,000+ sequence, which would take a long time to perform multiple sequence alignment. Therefore, 1 sequence was selected per unique species (there are 78 species in total, so 78 sequences was aligned).
 
 ```{r eval=FALSE, include=TRUE}
 
@@ -119,6 +143,8 @@ plot1 <- ggplot(crocidura.df4, aes(x = seq_length)) +
 plot1
 ```
 
+Next we should filter and organize our datset, GR_Area_km^2 and body size were sourced from the PanTHERIA database (https://esapubs.org/archive/ecol/E090/184/#data).
+
 ```{r eval=FALSE, include=TRUE}
 # Load the dataset
 phenotypic_dataset <- read.delim("esapubs.org_archive_ecol_E090_184_PanTHERIA_1-0_WR93_
@@ -135,6 +161,7 @@ phenotypic_dataset <- phenotypic_dataset[phenotypic_dataset$MSW93_Genus == "Croc
 colnames(phenotypic_dataset) <- c("genus", "species", "area", "body_mass") 
 ```
 
+Now we group the sequences with these traits:
 ```{r eval=FALSE, include=TRUE}
 # Out of 151 specis, only 41 has cytb sequence data
 crocidura.df5 <- left_join(phenotypic_dataset, crocidura.df4, by = "species")
@@ -145,6 +172,8 @@ crocidura.df6 <- crocidura.df5[crocidura.df5$body_mass != -999, ]
 ```
 
 # Section 2: Analysis of dataset
+
+First we would like to plot a phylogentic tree on all species with highest quality of sequence:
 
 ```{r echo=TRUE}
 # Compute distance matrix based on aligned sequences
@@ -170,6 +199,7 @@ phyloPlot <- ggtree(phyloTree) + geom_tree() + geom_tiplab(size = 2)
 phyloPlot
 ```
 
+To perform phylogenetically independent contrasts (PICs) analysis, we must first ensure it is rooted and dichotomous (only branch to 2 per node) by converting the tree into a binary tree:
 ```{r eval=FALSE, include=TRUE}
 # Note we are doing this again because we are using the dataset bound with phenotypes this time 
 #(n = 21 instead of 78)
@@ -195,3 +225,26 @@ plot(pic.area,pic.mass,xlab="PICs for Conservation Area(Km^2)",
 abline(fit.pic,lwd=2,lty="dashed",col="red")
 summary(fit.pic)
 ```
+
+# Discussion:
+
+While *Crocidura* stands out as the mammal genus with the highest species diversity, several of its species are at risk of extinction, necessitating protective measures due to both biological and environmental factors. The precise count of species within the *Crocidura* genus remains elusive owing to its extensive diversity, widespread distribution, secretive behaviors, and conservative morphology (Wilson and Mittermeier, 2018). In assessing the interplay of body size, geographical range, and phylogenetic evolution concerning the current conservation status on the IUCN Red List, I observed that the hypothesis associated with geographical range is supported, whereas the hypothesis linked to body size is not. Specifically, my findings indicate that *Crocidura wimmeri* exhibits the smallest geographical range based on data from PanTHERIA, while *Crocidura hirta* boasts the largest geographical distribution. The IUCN reveals that *Crocidura wimmeri* faces a critically endangered status, contrasting with *Crocidura hirta*, which is categorized as least concern. This contrast potentially underscores the vulnerability of species with smaller geographical ranges to extinction. However, when considering the influence of body mass on species extinction, both *Crocidura suaveolens*, the species with the smallest body mass, and *Crocidura goliath*, the species with the largest body mass, are categorized as least concern. The absence of significant findings may be attributed to limited data availability for many *Crocidura* species regarding body mass. Additionally, upon plotting a graph depicting the correlation between geographical area and body mass using the best fit line, no discernible correlation emerged between these two variables. This lack of correlation could be attributed to the absence of any actual connection between the variables, even though both may individually influence species extinction. Another potential explanation could be the restricted availability of data, limiting the extent of the findings.
+
+
+The present study has several limitations. Firstly, there is a scarcity of substantial information regarding the body mass of *Crocidura* species, possibly attributed to their secretive nature, making observation and data collection challenging. Secondly, the DNA sequence lengths of the species vary significantly, with many sequences being partial, posing challenges for alignment and comparison. Thirdly, the selected number of sequences for each species may not be sufficiently large to establish a correlation between body mass and geographical range, especially considering the vast geographical ranges of these species and the limited availability of body mass data. To address these limitations in future research, it is advisable to acquire more comprehensive data on the body mass of the *Crocidura* genus and to select a greater number of DNA sequences for alignment. Additionally, incorporating more genes, such as COI and 16S, which are also suitable for finding phylogenetic relations of the *Crocidura* genus, would enhance the robustness of the analysis. For a more extensive project, it is suggested to consider multiple factors that may pose threats to *Crocidura*, including litter size, inter-birth interval, and environmental factors like temperature, average human population density, and habitat breadth. Furthermore, exploring the potential impacts of climate change and habitat deterioration on *Crocidura* populations globally would be valuable. Such a comprehensive project not only contributes to understanding *Crocidura* phylogeny but also serves the vital purpose of informing conservation efforts. Hybridization strategies based on phylogenetic relationships could be employed to safeguard the species.
+
+
+# References:
+
+Cardillo, M., Mace, G. M., Gittleman, J. L., Jones, K. E., Bielby, J., & Purvis, A. (2008). The predictability of extinction: biological and external correlates of decline in mammals. Proceedings. Biological sciences, 275(1641), 1441–1448. https://doi.org/10.1098/rspb.2008.0179
+Collen, B., McRae, L., Deinet, S., De Palma, A., Carranza, T., Cooper, N., Loh, J., & Baillie, J. E. (2011). Predicting how populations decline to extinction. Philosophical transactions of the Royal Society of London. Series B, Biological sciences, 366(1577), 2577–2586. https://doi.org/10.1098/rstb.2011.0015
+
+Igbokwe, J., Nicolas, V., Oyeyiola, A., Obadare, A., Adesina, A. S., Awodiran, M. O., Van Houtte, N., Fichet-Calvet, E., Verheyen, E., & Olayemi, A. (2019). Molecular taxonomy of Crocidura species (Eulipotyphla: Soricidae) in a key biogeographical region for African shrews, Nigeria. Comptes rendus biologies, 342(3-4), 108–117. https://doi.org/10.1016/j.crvi.2019.03.004
+
+Jones, K. E., Bielby, J., Cardillo, M., Fritz, S. A., O’Dell, J., Orme, C. D., Safi, K., Sechrest, W., Boakes, E. H., Carbone, C., Connolly, C., Cutts, M. J., Foster, J. K., Grenyer, R., Habib, M., Plaster, C. A., Price, S. A., Rigby, E. A., Rist, J., … Purvis, A. (2009). Pantheria: A species‐level database of life history, ecology, and geography of extant and recently extinct mammals. Ecology, 90(9), 2648–2648. https://doi.org/10.1890/08-1494.1
+
+Morlon H. (2014). Phylogenetic approaches for studying diversification. Ecology letters, 17(4), 508–525. https://doi.org/10.1111/ele.12251
+
+Purvis, A., Gittleman, J. L., Cowlishaw, G., & Mace, G. M. (2000). Predicting extinction risk in declining species. Proceedings. Biological sciences, 267(1456), 1947–1952. https://doi.org/10.1098/rspb.2000.1234
+
+Wilson, D. E., Mittermeier, R. A., Llobet, T., Copete, J. L., Leslie, D. M., Martínez-Vilalta, A., Olivé, M., Elliott, A., Abba, A. M., &amp; Hoyo, J. del. (2018). Insectivores, sloths and colugos. In: Handbook of the mammals of the world. essay, Lynx. IUCN, Conservation International, IUCN Species Survival Commission (SSC). Retrieved from https://policycommons.net/artifacts/1375607/handbook-of-the-mammals-of-the-world/1989870/ on 26 Oct 2023. CID: 20.500.12592/4xz37h.
