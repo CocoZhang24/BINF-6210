@@ -151,8 +151,7 @@ Next we should filter and organize our datset, GR_Area_km\^2 and body size were 
 
 ```{r eval=FALSE, include=TRUE}
 # Load the dataset
-phenotypic_dataset <- read.delim("esapubs.org_archive_ecol_E090_184_PanTHERIA_1-0_WR93_
-                                 Aug2008 copy.txt", header = TRUE, sep = "\t")
+phenotypic_dataset <- read.delim("https://esapubs.org/archive/ecol/E090/184/PanTHERIA_1-0_WR93_Aug2008.txt", header = TRUE, sep = "\t")
 
 # Only keep columns we want
 phenotypic_dataset <- phenotypic_dataset[c("MSW93_Genus", "MSW93_Species", 
