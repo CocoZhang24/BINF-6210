@@ -149,12 +149,10 @@ Next we should filter and organize our datset, GR_Area_km\^2 and body size were 
 # Load the dataset
 phenotypic_dataset <- read.delim("https://esapubs.org/archive/ecol/E090/184/PanTHERIA_1-0_WR93_Aug2008.txt", header = TRUE, sep = "\t")
 
-# Only keep columns we want
-phenotypic_dataset <- phenotypic_dataset[c("MSW93_Genus", "MSW93_Species", 
-                                           "X26.1_GR_Area_km2", "X5.1_AdultBodyMass_g")]
-
-# Only keep rows where genus is "crocidura"
-phenotypic_dataset <- phenotypic_dataset[phenotypic_dataset$MSW93_Genus == "Crocidura",]
+# Only keep columns/values we want
+phenotypic_dataset <- phenotypic_dataset[c("MSW93_Genus", "MSW93_Species",
+                                           "X26.1_GR_Area_km2", "X5.1_AdultBodyMass_g")] %>%
+    filter(phenotypic_dataset$X5.1_AdultBodyMass_g >= 0 & phenotypic_dataset$MSW93_Genus == "Crocidura")
 
 # Rename columns
 colnames(phenotypic_dataset) <- c("genus", "species", "area", "body_mass") 
@@ -163,12 +161,9 @@ colnames(phenotypic_dataset) <- c("genus", "species", "area", "body_mass")
 Now we group the sequences with these traits:
 
 ```{r eval=FALSE, include=TRUE}
-# Out of 151 specis, only 41 has cytb sequence data
+# Out of 151 specis, only 21 has cytb sequence data and phenotypic data
 crocidura.df5 <- left_join(phenotypic_dataset, crocidura.df4, by = "species")
 crocidura.df5 <- crocidura.df5[!is.na(crocidura.df5$sequenceID), ]
-
-# Some species also does not have body mass (-999). Thus we have to remove these entries (41 to 21):
-crocidura.df6 <- crocidura.df5[crocidura.df5$body_mass != -999, ]
 ```
 
 # Section 2: Analysis of dataset
