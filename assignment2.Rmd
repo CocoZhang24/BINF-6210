@@ -35,6 +35,7 @@ library(ape)
 library(stringr)
 library(dplyr)
 library(ggtree)
+library(DECIPHER)
 ```
 
 # Section 1: Data retrieval and filtering
@@ -116,8 +117,11 @@ Since we are working with sequence classification, aligning these sequence would
 ```{r eval=FALSE, include=TRUE}
 
 # Filter all species with count less than 10
+species_distribution <- species_distribution[species_distribution$count >= 10, ]
+crocidura.df3 <- left_join(crocidura.df2, species_distribution, by="species") %>%
+    filter(!is.na(count))
 
-crocidura.df3 <- crocidura.df2 %>% 
+temp <- crocidura.df2 %>% 
                 left_join(species_distribution, by = "species") %>% 
                 filter(all(is.na(count)) | count >= 10) %>% 
                 select(-count)
@@ -128,6 +132,10 @@ crocidura.df4 <- crocidura.df3 %>%
                  group_by(species) %>% 
                  filter(seq_length == max(seq_length)) %>% 
                  sample_n(1) %>% ungroup()
+
+# Instead of randomly selecting 1 sample, taking the consensus sequence per specie and use that to create alignment between different species
+
+
 
 # Aligne sequences (n = 78)
 crocidura.df4$aligned_seq <- as.character(msa(crocidura.df4$sequence, type = "DNA"))
