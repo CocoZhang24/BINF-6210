@@ -35,6 +35,7 @@ library(ape)
 library(stringr)
 library(dplyr)
 library(ggtree)
+library(DECIPHER)
 ```
 
 # Section 1: Data retrieval and filtering
@@ -67,34 +68,12 @@ crocidura_sequences <- readDNAStringSet(temp_fasta_file)
 For personal preference, the sequences were converted into a data frame for easier visualization and analysis:
 
 ```{r eval=FALSE, include=TRUE}
-# Create an empty dataframe with column initialized
-crocidura.df <- data.frame(
-  sequenceID = character(0),
-  ID = character(0),
-  genus = character(0),
-  species = character(0),
-  seq_length = integer(0),
-  sequence = DNAStringSet(),
-  stringsAsFactors = FALSE
-)
-
-# Loop through the DNA sequences and add them to the dataframe
-for (i in 1:length(crocidura_sequences)) {
-  sequenceID <- as.character(names(crocidura_sequences)[i])
-  split_name <- strsplit(sequenceID, " ")
-  ID <- split_name[[1]][1]
-  genus <- split_name[[1]][2]
-  species <- split_name[[1]][3]
-  sequence <- crocidura_sequences[i]
-
-  # Add a new row to the dataframe
-  crocidura.df <- rbind(crocidura.df, data.frame(sequenceID = sequenceID, ID = ID, 
-                                                genus = genus, species = species, 
-                                                sequence = sequence, stringsAsFactors = FALSE))
-  rownames(crocidura.df)[i] <- i
-}
-rm(i, sequenceID, split_name, ID, genus, species, sequence)
-
+# create an dataframe with sequence and sequence data
+crocidura.df <- data.frame(sequenceID = names(crocidura_sequences))
+crocidura.df$ID <- word(crocidura.df$sequenceID, 1L)
+crocidura.df$genus <- word(crocidura.df$sequenceID, 2L)
+crocidura.df$species <- word(crocidura.df$sequenceID, 3L)
+crocidura.df$sequence <- as.character(crocidura_sequences)
 ```
 
 ## Step 2: Explore and filtering data
@@ -116,11 +95,10 @@ Since we are working with sequence classification, aligning these sequence would
 ```{r eval=FALSE, include=TRUE}
 
 # Filter all species with count less than 10
-
-crocidura.df3 <- crocidura.df2 %>% 
-                left_join(species_distribution, by = "species") %>% 
-                filter(all(is.na(count)) | count >= 10) %>% 
-                select(-count)
+species_distribution <- species_distribution[species_distribution$count >= 10, ]
+crocidura.df3 <- left_join(crocidura.df2, species_distribution, by="species") %>%
+    filter(!is.na(count)) %>%
+    select(-count)
 
 # Only select 1 sequence per species to align to
 crocidura.df3$seq_length <- nchar(crocidura.df3$sequence)
@@ -128,6 +106,24 @@ crocidura.df4 <- crocidura.df3 %>%
                  group_by(species) %>% 
                  filter(seq_length == max(seq_length)) %>% 
                  sample_n(1) %>% ungroup()
+
+# Instead of randomly selecting 1 sample, taking the consensus sequence per specie and use that to create alignment between different species
+# Only as a suggestion, it takes very long to run, but I will provide the code anyway. I think it is better to use consensus sequence per specie, rather than a random sequence for research.
+
+# Create Data Frame
+# crocidura.df4 <- data.frame(
+#     genus = character(0),
+#     species = character(0),
+#     sequence = character(0)
+# )
+
+# Loop for each specie, calculate consensus sequence, build upon data frame
+# for (specie in unique(crocidura.df3$species)) {
+#     df.specie <- crocidura.df3[crocidura.df3$species == specie, "sequence"]
+#     alignment <- msa(df.specie, type = "DNA")
+#     consensus <- as.character(msaConsensusSequence(msa))
+#     crocidura.df4 <- rbind(crocidura.df4, data.frame(genus = "Crocidura", species = specie, sequence = consensus))
+# }
 
 # Aligne sequences (n = 78)
 crocidura.df4$aligned_seq <- as.character(msa(crocidura.df4$sequence, type = "DNA"))
@@ -153,12 +149,10 @@ Next we should filter and organize our datset, GR_Area_km\^2 and body size were 
 # Load the dataset
 phenotypic_dataset <- read.delim("https://esapubs.org/archive/ecol/E090/184/PanTHERIA_1-0_WR93_Aug2008.txt", header = TRUE, sep = "\t")
 
-# Only keep columns we want
-phenotypic_dataset <- phenotypic_dataset[c("MSW93_Genus", "MSW93_Species", 
-                                           "X26.1_GR_Area_km2", "X5.1_AdultBodyMass_g")]
-
-# Only keep rows where genus is "crocidura"
-phenotypic_dataset <- phenotypic_dataset[phenotypic_dataset$MSW93_Genus == "Crocidura",]
+# Only keep columns/values we want
+phenotypic_dataset <- phenotypic_dataset[c("MSW93_Genus", "MSW93_Species",
+                                           "X26.1_GR_Area_km2", "X5.1_AdultBodyMass_g")] %>%
+    filter(phenotypic_dataset$X5.1_AdultBodyMass_g >= 0 & phenotypic_dataset$MSW93_Genus == "Crocidura")
 
 # Rename columns
 colnames(phenotypic_dataset) <- c("genus", "species", "area", "body_mass") 
@@ -167,12 +161,9 @@ colnames(phenotypic_dataset) <- c("genus", "species", "area", "body_mass")
 Now we group the sequences with these traits:
 
 ```{r eval=FALSE, include=TRUE}
-# Out of 151 specis, only 41 has cytb sequence data
+# Out of 151 specis, only 21 has cytb sequence data and phenotypic data
 crocidura.df5 <- left_join(phenotypic_dataset, crocidura.df4, by = "species")
 crocidura.df5 <- crocidura.df5[!is.na(crocidura.df5$sequenceID), ]
-
-# Some species also does not have body mass (-999). Thus we have to remove these entries (41 to 21):
-crocidura.df6 <- crocidura.df5[crocidura.df5$body_mass != -999, ]
 ```
 
 # Section 2: Analysis of dataset
